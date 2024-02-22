@@ -1,0 +1,29 @@
+{
+  "name": "jector",
+  "version": "0.1.0",
+  "description": "An opinionated and thin DI framework",
+  "main": "dist/index.js",
+  "author": "Aadam Zocolo",
+  "license": "MIT",
+  "scripts": {
+    "lint": "eslint ./src/**/*.ts",
+    "format": "prettier --write ./src/**/*.ts",
+    "build": "tsc -p ./tsconfig.json",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.19",
+    "@typescript-eslint/eslint-plugin": "^7.0.2",
+    "@typescript-eslint/parser": "^7.0.2",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.0.11",
+    "jest": "^29.7.0",
+    "prettier": "^3.2.5",
+    "reflect-metadata": "^0.2.1",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

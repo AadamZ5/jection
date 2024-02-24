@@ -4,7 +4,7 @@ import {
     FactoryProvider,
     ValueProvider,
 } from "../../types";
-import { Injectable, ProvidedIn } from "../injectable";
+import { Injectable } from "../injectable";
 import { Module } from "../module";
 
 export class TestClass {}
@@ -16,7 +16,7 @@ export class AnotherUndecoratedService {}
 @Injectable()
 export class DecoratedService {}
 
-@Injectable({ providedIn: ProvidedIn.MODULE })
+@Injectable()
 export class ModuleScopeService {}
 
 export const TEST_VALUE_PROVIDER = {
@@ -51,7 +51,7 @@ export const PROVIDERS = [
 ];
 
 @Module({
-    providers: PROVIDERS,
+    providers: [...PROVIDERS, ModuleScopeService],
 })
 export class TestModule {
     constructor(public readonly decoratedService: DecoratedService) {}

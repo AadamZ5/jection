@@ -2,7 +2,7 @@
   "name": "jector",
   "version": "0.1.0",
   "description": "An opinionated and thin DI framework",
-  "main": "dist/index.js",
+  "main": "dist",
   "author": "Aadam Zocolo",
   "license": "MIT",
   "scripts": {

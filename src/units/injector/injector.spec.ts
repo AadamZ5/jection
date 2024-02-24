@@ -1,3 +1,4 @@
+import { ProvidedIn } from "../injectable";
 import {
     DecoratedService,
     KLASS_PROVIDER,
@@ -5,19 +6,33 @@ import {
     TEST_EXISTING_PROVIDER,
     TEST_FACTORY_PROVIDER,
     TEST_VALUE_PROVIDER,
-    TestClass,
     TestModule,
 } from "./injection-boilerplate.test";
 import { ModuleInjector } from "./module-injector";
 import { RootInjector } from "./root-injector";
 import { RootProviders } from "./root-providers";
 
-RootProviders.addProvider(TEST_VALUE_PROVIDER);
-RootProviders.addProvider(TEST_CLASS_PROVIDER);
-RootProviders.addProvider(TEST_EXISTING_PROVIDER);
-RootProviders.addProvider(TEST_FACTORY_PROVIDER);
-RootProviders.addProvider(KLASS_PROVIDER);
-RootProviders.addProvider(DecoratedService);
+RootProviders.addProvider({
+    provider: TEST_VALUE_PROVIDER,
+    type: ProvidedIn.ROOT,
+});
+RootProviders.addProvider({
+    provider: TEST_CLASS_PROVIDER,
+    type: ProvidedIn.ROOT,
+});
+RootProviders.addProvider({
+    provider: TEST_EXISTING_PROVIDER,
+    type: ProvidedIn.ROOT,
+});
+RootProviders.addProvider({
+    provider: TEST_FACTORY_PROVIDER,
+    type: ProvidedIn.ROOT,
+});
+RootProviders.addProvider({ provider: KLASS_PROVIDER, type: ProvidedIn.ROOT });
+RootProviders.addProvider({
+    provider: DecoratedService,
+    type: ProvidedIn.ROOT,
+});
 
 const rootInjector = RootInjector.getRootInjector();
 const moduleInjector = new ModuleInjector(

@@ -56,7 +56,8 @@ export function isExistingProvider<T = unknown>(
 
 export interface FactoryProvider<
     T = unknown,
-    F extends (...args: unknown[]) => T = (...args: unknown[]) => T,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    F extends (...args: any[]) => T = (...args: any[]) => T,
 > extends SomeProvider<T> {
     useFactory: F;
     factoryDeps?: Parameters<F> | unknown[];

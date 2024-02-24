@@ -17,7 +17,6 @@ export function Module(options?: ModuleOptions) {
             throw new TargetNotObject(target);
         }
 
-        // TODO: Mark stuff on the class
         const existingModuleDef = Reflect.getMetadata(DI_MODULE, target);
 
         if (existingModuleDef) {
@@ -26,8 +25,29 @@ export function Module(options?: ModuleOptions) {
             );
         }
 
+        const providers = options?.providers ?? [];
+
+        if (options?.imports) {
+            for (const importedModule of options.imports) {
+                const importedModuleMeta = Reflect.getMetadata(
+                    DI_MODULE,
+                    importedModule,
+                ) as ModuleMeta;
+
+                if (!importedModuleMeta) {
+                    throw new Error(
+                        `Module ${String(
+                            importedModule,
+                        )} does not have a module definition`,
+                    );
+                }
+
+                providers.push(...importedModuleMeta.providers);
+            }
+        }
+
         const moduleMeta: ModuleMeta = {
-            providers: options?.providers ?? [],
+            providers: providers,
         };
 
         Reflect.defineMetadata(DI_MODULE, moduleMeta, target);

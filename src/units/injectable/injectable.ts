@@ -14,13 +14,19 @@ export function Injectable(options?: InjectableOptions) {
             throw new Error("Injectable must be a class");
         }
 
-        if (options?.providedIn === ProvidedIn.ROOT) {
+        if (
+            options?.providedIn === ProvidedIn.ROOT ||
+            options?.providedIn === ProvidedIn.ANYWHERE
+        ) {
             const rootProvider: ClassProvider = {
                 provide: target,
                 useClass: target,
             };
 
-            RootProviders.addProvider(rootProvider);
+            RootProviders.addProvider({
+                provider: rootProvider,
+                type: options.providedIn,
+            });
         }
     };
 }

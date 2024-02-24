@@ -32,6 +32,7 @@ import { describe } from "node:test";
 import { RootInjector } from "./root-injector";
 import { Provider } from "../../types/provider";
 import { RootProviders } from "./root-providers";
+import { ProvidedIn } from "../injectable";
 
 describe("Root injector", () => {
     beforeEach(() => {
@@ -52,7 +53,10 @@ describe("Root injector", () => {
             useValue: "test value",
         };
 
-        RootProviders.addProvider(simpleProvider);
+        RootProviders.addProvider({
+            provider: simpleProvider,
+            type: ProvidedIn.ROOT,
+        });
 
         const injector = RootInjector.getRootInjector();
 

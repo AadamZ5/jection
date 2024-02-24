@@ -21,7 +21,7 @@ export function Loader<T>(options?: LoaderOptions) {
     };
 }
 
-export abstract class ModuleLoader<T> {
+export abstract class ModuleLoaderBase<T> {
     private [MODULE_LOADER_INJECTOR]!: Injector;
 
     // TODO: Allow passing providers for the loaded module?? How

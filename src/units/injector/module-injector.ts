@@ -1,4 +1,4 @@
-import { ProvidedIn } from "..";
+import { ProvidedIn } from "../injectable/injectable-options";
 import { DI_MODULE } from "../../constants/reflect-keys";
 import { Klass } from "../../types/class";
 import { ProvideType } from "../../types/provide-type";
@@ -101,7 +101,7 @@ export class ModuleInjector<T> extends Injector {
         /**
          * If this provider was declared to be anywhere, load it here.
          */
-        if (providerLocation.provideType === ProvidedIn.ANYWHERE) {
+        if (providerLocation.providedIn === ProvidedIn.ANYWHERE) {
             return this.resolve(providerLocation.providerState);
         }
 

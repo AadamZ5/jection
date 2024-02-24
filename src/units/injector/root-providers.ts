@@ -1,8 +1,6 @@
-import { Klass } from "../../types/class";
 import { ProvideType } from "../../types/provide-type";
 import { Provider, coerceProvideType } from "../../types/provider";
 import { ProvidedIn } from "../injectable/injectable-options";
-import { InjectHelper } from "./inject-decorator";
 
 export interface ProviderContext<T = unknown> {
     provider: Provider<T>;
@@ -14,7 +12,6 @@ export interface ProviderContext<T = unknown> {
  * providers. This should not be exposed to library consumers.
  */
 export class RootProviders {
-    private static injectHelpers = new Set<InjectHelper>();
     private static providers = new Map<ProvideType, ProviderContext>();
     private static addedCallbacks = new Set<
         (provider: ProviderContext) => void
@@ -52,29 +49,6 @@ export class RootProviders {
             RootProviders.providers.set(provideType, providerCtx);
             RootProviders._notifyAdded(providerCtx);
         });
-    }
-
-    public static addInjectionHelper(helper: InjectHelper) {
-        this.injectHelpers.add(helper);
-    }
-
-    public static resolveConstructorParamToProviderType(
-        target: Klass,
-        parameter: string | symbol | ProvideType,
-        index?: number,
-    ) {
-        const helper = [...RootProviders.injectHelpers].find((helper) => {
-            return (
-                helper.target === target && helper.index === index
-                //&& helper.propertyKey === parameter
-            );
-        });
-
-        if (helper) {
-            return helper.providerType;
-        }
-
-        return parameter;
     }
 
     /**

@@ -18,7 +18,14 @@ import {
 import { ModuleLoaderBase } from "../module/module-loader";
 import { ProviderLocation, ProviderResolution } from "./provider-resolution";
 import { ProviderState } from "./provider-state";
-import { RootProviders } from "./root-providers";
+import {
+    deduplicateCtorAndPropDependencies,
+    resolveCtorParamProvideType,
+} from "./injector-util";
+import {
+    getConstructorInjectHelpers,
+    getPropertyInjectHelpers,
+} from "./inject-decorator";
 
 export abstract class Injector {
     constructor(public readonly parent: Injector | undefined) {}
@@ -135,14 +142,26 @@ export abstract class Injector {
     private _createClassStrategy<T>(provider: ClassProvider<T>): T {
         const { useClass } = provider;
 
-        const dependencies = this._resolveClassDependenciesShallow(provider);
+        const { ctorDeps, propDeps } =
+            this._resolveClassDependenciesShallow(provider);
 
         // Try to resolve each dependency
-        const instances = dependencies.map((dep) => {
+        const ctorValues = ctorDeps.map((dep) => {
             return this.get(coerceProvideType(dep.providerState.definition));
         });
 
-        return new useClass(...instances) as T;
+        const propValues = [...propDeps.entries()].map(([propertyKey, dep]) => {
+            return [
+                propertyKey,
+                this.get(coerceProvideType(dep.providerState.definition)),
+            ] as const;
+        });
+
+        const instance = new useClass(...ctorValues) as T;
+        propValues.forEach(([propKey, propValue]) => {
+            instance[propKey as keyof T] = propValue as T[keyof T];
+        });
+        return instance;
     }
 
     private _createExistingStrategy<T>(provider: ExistingProvider<T>): T {
@@ -205,44 +224,61 @@ export abstract class Injector {
         }
     }
 
-    private _resolveClassDependenciesShallow<T>(
-        provider: ClassProvider<T>,
-    ): ProviderLocation<unknown>[] {
+    private _resolveClassDependenciesShallow<T>(provider: ClassProvider<T>): {
+        ctorDeps: ProviderLocation[];
+        propDeps: Map<string | symbol, ProviderLocation>;
+    } {
         const { useClass } = provider;
 
         const parameters: (string | symbol | Klass)[] =
             Reflect.getMetadata("design:paramtypes", useClass) ?? [];
 
-        return parameters.map((param, index) => {
-            const provideType =
-                RootProviders.resolveConstructorParamToProviderType(
-                    useClass,
-                    param,
-                    index,
-                );
+        const ctorHelpers = getConstructorInjectHelpers(useClass);
+        const propHelpers = getPropertyInjectHelpers(useClass);
 
-            if (!isProvideType(provideType)) {
-                throw new TypeError(
-                    `Unknown class dependency type ${JSON.stringify(param)}`,
-                );
-            }
+        // First we resolve property injections
+        const propertyDeps = new Map(
+            [...(propHelpers?.entries() ?? [])].map(
+                ([propKey, provideType]) => {
+                    return [
+                        propKey as string | symbol,
+                        this.resolveProviderLocation(provideType),
+                    ] as const;
+                },
+            ),
+        );
 
-            const providerLocation = this.resolveProviderLocation(provideType);
-
-            return providerLocation;
+        // Then resolve constructor injections
+        const constructorDeps = parameters.map((param, index) => {
+            const provideType = resolveCtorParamProvideType(
+                ctorHelpers,
+                param,
+                index,
+            );
+            return this.resolveProviderLocation(provideType);
         });
+
+        // Return the resolved provider locations
+        return {
+            ctorDeps: constructorDeps,
+            propDeps: propertyDeps,
+        };
     }
 
     private _resolveClassDependencies<T>(
         provider: ClassProvider<T>,
     ): ProviderResolution<unknown>[] {
-        return this._resolveClassDependenciesShallow(provider).map(
-            (resolvedProvider) => {
-                return this.getProviderDependencyTree(
-                    resolvedProvider.providerState.definition,
-                );
-            },
-        );
+        const { ctorDeps, propDeps } =
+            this._resolveClassDependenciesShallow(provider);
+
+        return deduplicateCtorAndPropDependencies(
+            ctorDeps,
+            propDeps.values(),
+        ).map((resolvedProvider) => {
+            return this.getProviderDependencyTree(
+                resolvedProvider.providerState.definition,
+            );
+        });
     }
 
     private _resolveExistingDependencies<T>(

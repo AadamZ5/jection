@@ -1,6 +1,6 @@
-import { ProvidedIn } from "..";
 import { ProvideType, providerTypeToString } from "../../types/provide-type";
 import { Provider, coerceProvideType } from "../../types/provider";
+import { ProvidedIn } from "../injectable/injectable-options";
 import { Injector } from "./injector";
 import { ProviderLocation } from "./provider-resolution";
 import { ProviderState } from "./provider-state";
@@ -58,7 +58,7 @@ export class RootInjector extends Injector {
         return {
             foundIn: this,
             providerState,
-            provideType,
+            providedIn: provideType,
         };
     }
 

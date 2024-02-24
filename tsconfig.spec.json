@@ -3,6 +3,7 @@
   "extends": "./tsconfig.json",
   "include": ["src/**/*.spec.ts"],
   "compilerOptions": {
-    "types": ["jest", "node", "reflect-metadata"]
+    "types": ["jest", "node", "reflect-metadata"],
+    "lib": ["dom", "ES2020"]
   },
 }

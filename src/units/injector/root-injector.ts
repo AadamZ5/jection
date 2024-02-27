@@ -1,37 +1,34 @@
 import { ProvideType, providerTypeToString } from "../../types/provide-type";
-import { Provider, coerceProvideType } from "../../types/provider";
+import {
+    Provider,
+    coerceProvideType,
+    coerceProviderToProviderDefinition,
+} from "../../types/provider";
 import { ProvidedIn } from "../injectable/injectable-options";
 import { Injector } from "./injector";
 import { ProviderLocation } from "./provider-resolution";
-import { ProviderState } from "./provider-state";
+import {
+    ProviderState,
+    RootProviderState,
+    assertIsProvidedIn,
+    upsertProvidedIn,
+} from "../../types/provider-state";
 import { RootProviders } from "./root-providers";
 
 export class RootInjector extends Injector {
     private static globalRootInjector: RootInjector;
 
-    /**
-     * Anywhere providers can get resolved at some other injector. They
-     * can be instantiated "anywhere" meaning at any place in the injection
-     * hierarchy. `ModuleInjector`s use this to determine if they should
-     * resolve at them or pass up the resolution to a parent.
-     */
-    private anywhereProviders = new Set<Provider>();
+    protected providers = new Map<ProvideType, RootProviderState>();
 
-    constructor(providers: Provider[]) {
+    constructor(providers?: Provider[]) {
         // Root injector has no parent.
         super(undefined);
 
-        const rootDefinedProviders = [...RootProviders.getProviders()].map(
-            (ctx) => {
-                if (ctx.type === ProvidedIn.ANYWHERE) {
-                    this.anywhereProviders.add(ctx.provider);
-                }
-
-                return ctx.provider;
-            },
-        );
-
-        this._populateProviders([...providers, ...rootDefinedProviders]);
+        if (providers) {
+            this._populateProviders(providers);
+        }
+        const rootDefinedProviders = [...RootProviders.getProviders()];
+        this._populateProviders(rootDefinedProviders);
         this._watchForNewProviders();
     }
 
@@ -48,17 +45,9 @@ export class RootInjector extends Injector {
             );
         }
 
-        // If the provider is registered here and is in `anywhereProviders` then it is
-        // provide type `ANYWHERE`. If it's not in that set, then it's defined here in
-        // root, thus it is `ProvidedIn.ROOT`
-        const provideType = this.anywhereProviders.has(providerState.definition)
-            ? ProvidedIn.ANYWHERE
-            : ProvidedIn.ROOT;
-
         return {
             foundIn: this,
             providerState,
-            providedIn: provideType,
         };
     }
 
@@ -78,16 +67,21 @@ export class RootInjector extends Injector {
      * This can happen when lazy chunks are loaded using `ModuleLoader`s.
      */
     private _watchForNewProviders() {
-        return RootProviders.onProviderAdded((ctx) => {
-            if (ctx.type === ProvidedIn.ANYWHERE) {
-                this.anywhereProviders.add(ctx.provider);
-            }
-            this._addProvider(ctx.provider);
+        return RootProviders.onProviderAdded((provider) => {
+            this._addProvider(provider);
         });
     }
 
     private _addProvider(provider: Provider) {
         const provideType = coerceProvideType(provider);
+
+        provider = coerceProviderToProviderDefinition(provider);
+        upsertProvidedIn(provider, ProvidedIn.ROOT);
+
+        // If the provider is in the root providers but does not
+        // have a `providedIn` property, then what are we doing??
+        assertIsProvidedIn(provider);
+
         this.providers.set(provideType, {
             definition: provider,
         });
@@ -122,6 +116,6 @@ export class RootInjector extends Injector {
             throw new Error("RootInjector has already been initialized");
         }
 
-        RootInjector.globalRootInjector = new RootInjector([]);
+        RootInjector.globalRootInjector = new RootInjector();
     }
 }

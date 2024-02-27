@@ -1,20 +1,19 @@
-import { ProvideType } from "../../types/provide-type";
-import { Provider, coerceProvideType } from "../../types/provider";
 import { ProvidedIn } from "../injectable/injectable-options";
-
-export interface ProviderContext<T = unknown> {
-    provider: Provider<T>;
-    type: ProvidedIn;
-}
-
+import { ProvideType } from "../../types/provide-type";
+import {
+    Provider,
+    ProviderDefinition,
+    coerceProviderToProviderDefinition,
+} from "../../types/provider";
+import { upsertProvidedIn } from "../../types/provider-state";
 /**
  * Internal library mechanism for keeping track of the root
  * providers. This should not be exposed to library consumers.
  */
 export class RootProviders {
-    private static providers = new Map<ProvideType, ProviderContext>();
+    private static providers = new Map<ProvideType, ProviderDefinition>();
     private static addedCallbacks = new Set<
-        (provider: ProviderContext) => void
+        (provider: ProviderDefinition) => void
     >();
 
     /**
@@ -25,9 +24,7 @@ export class RootProviders {
      * @returns A teardown function that when called will stop watching for
      * new providers.
      */
-    public static onProviderAdded(
-        callback: (provider: ProviderContext) => void,
-    ) {
+    public static onProviderAdded(callback: (provider: Provider) => void) {
         RootProviders.addedCallbacks.add(callback);
         return () => {
             RootProviders.addedCallbacks.delete(callback);
@@ -38,23 +35,24 @@ export class RootProviders {
      * As lazy chunks get loaded, they will need to add root providers.
      * That will happen here.
      */
-    public static addProvider(...providerCtxs: ProviderContext[]) {
-        providerCtxs.forEach((providerCtx) => {
-            const provideType = coerceProvideType(providerCtx.provider);
+    public static addProvider(...providers: Provider[]) {
+        providers.forEach((provider) => {
+            provider = coerceProviderToProviderDefinition(provider);
 
-            if (RootProviders.providers.has(provideType)) {
+            if (RootProviders.providers.has(provider.provide)) {
                 return;
             }
 
-            RootProviders.providers.set(provideType, providerCtx);
-            RootProviders._notifyAdded(providerCtx);
+            upsertProvidedIn(provider, ProvidedIn.ROOT);
+            RootProviders.providers.set(provider.provide, provider);
+            RootProviders._notifyAdded(provider);
         });
     }
 
     /**
      * Gets all current root providers
      */
-    public static getProviders(): ReadonlySet<ProviderContext> {
+    public static getProviders(): ReadonlySet<ProviderDefinition> {
         return new Set(RootProviders.providers.values());
     }
 
@@ -63,7 +61,7 @@ export class RootProviders {
      *
      * @param provider The provider that was added.
      */
-    private static _notifyAdded(provider: ProviderContext) {
+    private static _notifyAdded(provider: ProviderDefinition) {
         RootProviders.addedCallbacks.forEach((callback) => {
             callback(provider);
         });

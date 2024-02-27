@@ -10,10 +10,10 @@ export interface LoaderOptions {
     providedIn?: ProvidedIn;
 }
 
-export function Loader<T>(options?: LoaderOptions) {
+export function Loader<T extends Klass>(options?: LoaderOptions) {
     const injectableDecorator = Injectable({ providedIn: options?.providedIn });
 
-    return <T extends Klass<unknown>>(target: T) => {
+    return (target: T) => {
         injectableDecorator(target);
         // We will mark this as a module-loader. We may want to
         // automatically supply an injector to the loader.

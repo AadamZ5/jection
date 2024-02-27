@@ -1,4 +1,4 @@
-import { Injectable, ProvidedIn } from ".";
+import { Injectable } from ".";
 import { ClassProvider } from "../../types";
 import { RootInjector } from "../injector";
 import { RootProviders } from "../injector/root-providers";
@@ -33,10 +33,7 @@ describe("Injectable", () => {
             useClass: SomeClassImpl,
         } satisfies ClassProvider;
 
-        RootProviders.addProvider({
-            provider: classProvider,
-            type: ProvidedIn.ROOT,
-        });
+        RootProviders.addProvider(classProvider);
 
         const injector = RootInjector.getRootInjector();
 

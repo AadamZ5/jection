@@ -14,11 +14,9 @@ const TOKEN_VALUE = "Something";
 describe("Inject Decorator", () => {
     const TOKEN = new InjectionToken<string>("TOKEN");
     RootProviders.addProvider({
-        provider: {
-            provide: TOKEN,
-            useValue: TOKEN_VALUE,
-        },
-        type: ProvidedIn.ANYWHERE,
+        provide: TOKEN,
+        useValue: TOKEN_VALUE,
+        providedIn: ProvidedIn.ANYWHERE,
     });
 
     it("should work as a constructor parameter decorator", () => {

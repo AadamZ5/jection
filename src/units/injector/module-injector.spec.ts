@@ -1,6 +1,5 @@
 import { RootInjector } from ".";
 import { ValueProvider } from "../../types";
-import { ProvidedIn } from "../injectable";
 import {
     DecoratedService,
     TEST_VALUE_PROVIDER,
@@ -36,10 +35,7 @@ describe("Module injector", () => {
             useValue: "unique value",
         };
 
-        RootProviders.addProvider({
-            provider: uniqueProvider,
-            type: ProvidedIn.ROOT,
-        });
+        RootProviders.addProvider(uniqueProvider);
 
         expect(moduleInjector.get(uniqueProvider.provide)).toBe(
             uniqueProvider.useValue,

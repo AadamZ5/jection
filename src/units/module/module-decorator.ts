@@ -41,13 +41,13 @@ export function Module(options?: ModuleOptions) {
                         )} does not have a module definition`,
                     );
                 }
-
-                providers.push(...importedModuleMeta.providers);
             }
         }
 
         const moduleMeta: ModuleMeta = {
             providers: providers,
+            imports: options?.imports,
+            exports: options?.exports,
         };
 
         Reflect.defineMetadata(DI_MODULE, moduleMeta, target);

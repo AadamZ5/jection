@@ -21,12 +21,10 @@ export function Injectable(options?: InjectableOptions) {
             const rootProvider: ClassProvider = {
                 provide: target,
                 useClass: target,
+                providedIn: options.providedIn,
             };
 
-            RootProviders.addProvider({
-                provider: rootProvider,
-                type: options.providedIn,
-            });
+            RootProviders.addProvider(rootProvider);
         }
     };
 }

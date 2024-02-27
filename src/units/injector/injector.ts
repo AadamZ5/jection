@@ -17,7 +17,7 @@ import {
 } from "../../types/provider";
 import { ModuleLoaderBase } from "../module/module-loader";
 import { ProviderLocation, ProviderResolution } from "./provider-resolution";
-import { ProviderState } from "./provider-state";
+import { ProviderState } from "../../types/provider-state";
 import {
     deduplicateCtorAndPropDependencies,
     resolveCtorParamProvideType,
@@ -35,7 +35,7 @@ export abstract class Injector {
      *
      * TODO: Support `multi` providers!
      */
-    protected providers = new Map<ProvideType, ProviderState>();
+    protected abstract providers: Map<ProvideType, ProviderState>;
 
     /**
      * Attempts to resolve an instance from a provider type.

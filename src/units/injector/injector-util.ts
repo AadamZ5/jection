@@ -1,8 +1,7 @@
 import { Klass } from "../../types/class";
 import { ProvideType, isProvideType } from "../../types/provide-type";
-import { coerceProvideType } from "../../types/provider";
+import { Provider, coerceProvideType } from "../../types/provider";
 import { ConstructorInjectHelper } from "./inject-decorator";
-import { ProviderLocation } from "./provider-resolution";
 
 export function resolveCtorParamProvideType<T>(
     ctorHelpers: ConstructorInjectHelper[],
@@ -11,10 +10,10 @@ export function resolveCtorParamProvideType<T>(
 ): ProvideType<T> {
     const ctorHelper = ctorHelpers[paramIndex];
     if (ctorHelper) {
-        return ctorHelper.providerType;
+        return ctorHelper.providerType as ProvideType<T>;
     }
 
-    if (!isProvideType(parameter)) {
+    if (!isProvideType<T>(parameter)) {
         throw new TypeError(
             `Unknown class dependency type ${JSON.stringify(parameter)}`,
         );
@@ -24,17 +23,15 @@ export function resolveCtorParamProvideType<T>(
 }
 
 export function deduplicateCtorAndPropDependencies(
-    ctorDeps: Iterable<ProviderLocation>,
-    propDeps: Iterable<ProviderLocation>,
-): ProviderLocation[] {
+    ctorDeps: Iterable<Provider>,
+    propDeps: Iterable<Provider>,
+): Provider[] {
     const provideTypes = new Set<ProvideType>();
 
-    const deduped: ProviderLocation[] = [];
+    const deduped: Provider[] = [];
 
     for (const dep of ctorDeps) {
-        const coercedProvideType = coerceProvideType(
-            dep.providerState.definition,
-        );
+        const coercedProvideType = coerceProvideType(dep);
         if (!provideTypes.has(coercedProvideType)) {
             provideTypes.add(coercedProvideType);
             deduped.push(dep);
@@ -42,9 +39,7 @@ export function deduplicateCtorAndPropDependencies(
     }
 
     for (const dep of propDeps) {
-        const coercedProvideType = coerceProvideType(
-            dep.providerState.definition,
-        );
+        const coercedProvideType = coerceProvideType(dep);
         if (!provideTypes.has(coercedProvideType)) {
             provideTypes.add(coercedProvideType);
             deduped.push(dep);

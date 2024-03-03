@@ -18,7 +18,7 @@ import { RootProviders } from "./root-providers";
 export class RootInjector extends Injector {
     private static globalRootInjector: RootInjector;
 
-    protected providers = new Map<ProvideType, RootProviderState>();
+    protected readonly providers = new Map<ProvideType, RootProviderState>();
 
     constructor(providers?: Provider[]) {
         // Root injector has no parent.
@@ -72,6 +72,9 @@ export class RootInjector extends Injector {
         });
     }
 
+    /**
+     * Helper function to add a provider to this injector
+     */
     private _addProvider(provider: Provider) {
         const provideType = coerceProvideType(provider);
 

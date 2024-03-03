@@ -1,6 +1,10 @@
 import { DI_MODULE } from "../../constants/reflect-keys";
 import { TargetNotObject } from "../../errors/target-not-object";
-import { ModuleMeta } from "./module-meta";
+import {
+    ModuleMeta,
+    coerceModuleFromImport,
+    moduleMetaFromImport,
+} from "./module-meta";
 import { ModuleOptions } from "./module-options";
 
 /**
@@ -12,7 +16,8 @@ import { ModuleOptions } from "./module-options";
  * to allow for bootstrapping and kicking off logic.
  */
 export function Module(options?: ModuleOptions) {
-    return function (target: unknown) {
+    // eslint-disable-next-line @typescript-eslint/ban-types
+    return function (target: Function) {
         if (!(target instanceof Object)) {
             throw new TargetNotObject(target);
         }
@@ -29,16 +34,12 @@ export function Module(options?: ModuleOptions) {
 
         if (options?.imports) {
             for (const importedModule of options.imports) {
-                const importedModuleMeta = Reflect.getMetadata(
-                    DI_MODULE,
-                    importedModule,
-                ) as ModuleMeta;
+                const module = coerceModuleFromImport(importedModule);
+                const importedModuleMeta = moduleMetaFromImport(importedModule);
 
                 if (!importedModuleMeta) {
                     throw new Error(
-                        `Module ${String(
-                            importedModule,
-                        )} does not have a module definition`,
+                        `While processing module ${target.name}, imported module ${module.name} does not have a module definition`,
                     );
                 }
             }

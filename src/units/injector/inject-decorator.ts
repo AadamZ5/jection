@@ -46,14 +46,14 @@ function _decorateParameter(
     classDefinition: Klass,
     _propertyKey: string | symbol | undefined,
     index: number,
-    providerType: ProvideType<unknown>,
+    providerType: ProvideType,
 ) {
     const existingCtorInjectHelpers: ConstructorInjectHelper[] =
         Reflect.getMetadata(DI_CTOR_INJECT_HELPERS, classDefinition) ?? [];
 
     existingCtorInjectHelpers[index] = {
         ctorParamIndex: index,
-        providerType,
+        providerType: providerType as ProvideType<unknown>,
     };
 
     Reflect.defineMetadata(
@@ -69,13 +69,13 @@ export function getConstructorInjectHelpers(
     return Reflect.getMetadata(DI_CTOR_INJECT_HELPERS, target) ?? [];
 }
 
-export type PropertyInjectHelpers = Map<string | symbol, ProvideType<unknown>>;
+export type PropertyInjectHelpers = Map<string | symbol, ProvideType>;
 
 function _decorateProperty(
     // eslint-disable-next-line @typescript-eslint/ban-types
     prototype: Object,
     propertyKey: string | symbol,
-    providerType: ProvideType<unknown>,
+    providerType: ProvideType,
 ) {
     // When property decorators are used, the prototype is given to the
     // decorator where as in parameter decorators, the class definition

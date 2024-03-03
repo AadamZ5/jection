@@ -15,17 +15,14 @@ import {
     isKlassProvider,
     isValueProvider,
 } from "../../types/provider";
-import { ModuleLoaderBase } from "../module/module-loader";
-import { ProviderLocation, ProviderResolution } from "./provider-resolution";
+import { ProviderLocation } from "./provider-resolution";
 import { ProviderState } from "../../types/provider-state";
-import {
-    deduplicateCtorAndPropDependencies,
-    resolveCtorParamProvideType,
-} from "./injector-util";
+import { resolveCtorParamProvideType } from "./injector-util";
 import {
     getConstructorInjectHelpers,
     getPropertyInjectHelpers,
 } from "./inject-decorator";
+import { PreparedModuleLoader } from "../module/module-loader";
 
 export abstract class Injector {
     constructor(public readonly parent: Injector | undefined) {}
@@ -35,7 +32,7 @@ export abstract class Injector {
      *
      * TODO: Support `multi` providers!
      */
-    protected abstract providers: Map<ProvideType, ProviderState>;
+    protected abstract readonly providers: Map<ProvideType, ProviderState>;
 
     /**
      * Attempts to resolve an instance from a provider type.
@@ -65,18 +62,29 @@ export abstract class Injector {
      * @returns an instance of the thing
      */
     protected resolve<T>(providerState: ProviderState<T>): T {
-        if (!providerState.instance) {
-            providerState.instance = this.createInstance(
-                providerState.definition,
-            );
+        let instance = providerState.instance;
+
+        if (instance === undefined) {
+            instance = this.createInstance(providerState.definition);
+
+            providerState.instance = instance;
+
+            // If we're a factory provider with caching disabled,
+            // don't save the instance.
+            if (
+                isFactoryProvider(providerState.definition) &&
+                providerState.definition.cacheResult === false
+            ) {
+                delete providerState.instance;
+            }
 
             this.doDiPostProcessing(
                 coerceProvideType(providerState.definition),
-                providerState.instance,
+                instance,
             );
         }
 
-        return providerState.instance;
+        return instance!;
     }
 
     /**
@@ -94,13 +102,14 @@ export abstract class Injector {
         if (isKlassProvider(providerType)) {
             const isModuleLoader = Reflect.getMetadata(
                 DI_MODULE_LOADER,
-                providerType,
+                providerType as object,
             );
             if (isModuleLoader) {
                 // TODO: Should this happen after all parent injection searches at the
                 // TODO: lowest child level, or here at the highest parent level?
-                (instance as ModuleLoaderBase<T>)[MODULE_LOADER_INJECTOR] =
-                    this;
+                (instance as PreparedModuleLoader<Klass>)[
+                    MODULE_LOADER_INJECTOR
+                ] = this;
             }
         }
 
@@ -114,16 +123,16 @@ export abstract class Injector {
      * @param provider
      * @returns
      */
-    private createInstance<T>(provider: Provider<T>): T {
-        if (isValueProvider(provider)) {
+    private createInstance<T>(provider: Provider<T>) {
+        if (isValueProvider<T>(provider)) {
             return this._createValueStrategy(provider);
-        } else if (isClassProvider(provider)) {
+        } else if (isClassProvider<T>(provider)) {
             return this._createClassStrategy(provider);
-        } else if (isExistingProvider(provider)) {
+        } else if (isExistingProvider<T>(provider)) {
             return this._createExistingStrategy(provider);
-        } else if (isFactoryProvider(provider)) {
+        } else if (isFactoryProvider<T>(provider)) {
             return this._createFactoryStrategy(provider);
-        } else if (isKlassProvider(provider)) {
+        } else if (isKlassProvider<T>(provider)) {
             return this._createClassStrategy({
                 provide: provider,
                 useClass: provider,
@@ -139,7 +148,7 @@ export abstract class Injector {
         return provider.useValue;
     }
 
-    private _createClassStrategy<T>(provider: ClassProvider<T>): T {
+    private _createClassStrategy<T>(provider: ClassProvider<T>) {
         const { useClass } = provider;
 
         const { ctorDeps, propDeps } =
@@ -180,50 +189,6 @@ export abstract class Injector {
         return useFactory(...deps);
     }
 
-    /**
-     * Given a provider, get nested provider resolution objects
-     * that give information about what and where this
-     * provider's dependencies are.
-     *
-     * @param provider The provider to form a dependency tree for
-     * @returns A dependency tree `ProviderResolution`
-     */
-    private getProviderDependencyTree<T>(provider: Provider<T>) {
-        const location = this.resolveProviderLocation(
-            coerceProvideType(provider),
-        );
-        const dependencies = this._getProviderDependencies(provider);
-
-        return {
-            dependencies,
-            foundIn: location.foundIn,
-            providerState: location.providerState,
-        } satisfies ProviderResolution;
-    }
-
-    private _getProviderDependencies<T>(
-        provider: Provider<T>,
-    ): ProviderResolution<unknown>[] {
-        if (isValueProvider(provider)) {
-            return [];
-        } else if (isClassProvider(provider)) {
-            return this._resolveClassDependencies(provider);
-        } else if (isExistingProvider(provider)) {
-            return [this._resolveExistingDependencies(provider)];
-        } else if (isFactoryProvider(provider)) {
-            return this._resolveFactoryDependencies(provider);
-        } else if (isKlassProvider(provider)) {
-            return this._resolveClassDependencies({
-                provide: provider,
-                useClass: provider,
-            });
-        } else {
-            throw new Error(
-                `Unknown provider type: ${JSON.stringify(provider)}`,
-            );
-        }
-    }
-
     private _resolveClassDependenciesShallow<T>(provider: ClassProvider<T>): {
         ctorDeps: ProviderLocation[];
         propDeps: Map<string | symbol, ProviderLocation>;
@@ -242,7 +207,9 @@ export abstract class Injector {
                 ([propKey, provideType]) => {
                     return [
                         propKey as string | symbol,
-                        this.resolveProviderLocation(provideType),
+                        this.resolveProviderLocation(
+                            provideType as ProvideType<unknown>,
+                        ),
                     ] as const;
                 },
             ),
@@ -263,54 +230,5 @@ export abstract class Injector {
             ctorDeps: constructorDeps,
             propDeps: propertyDeps,
         };
-    }
-
-    private _resolveClassDependencies<T>(
-        provider: ClassProvider<T>,
-    ): ProviderResolution<unknown>[] {
-        const { ctorDeps, propDeps } =
-            this._resolveClassDependenciesShallow(provider);
-
-        return deduplicateCtorAndPropDependencies(
-            ctorDeps,
-            propDeps.values(),
-        ).map((resolvedProvider) => {
-            return this.getProviderDependencyTree(
-                resolvedProvider.providerState.definition,
-            );
-        });
-    }
-
-    private _resolveExistingDependencies<T>(
-        provider: ExistingProvider<T>,
-    ): ProviderResolution<unknown> {
-        const thisProviderResolved = this.resolveProviderLocation(
-            provider.useExisting,
-        );
-
-        return {
-            dependencies: this._getProviderDependencies(
-                thisProviderResolved.providerState.definition,
-            ),
-            foundIn: thisProviderResolved.foundIn,
-            providerState: thisProviderResolved.providerState,
-        };
-    }
-
-    private _resolveFactoryDependencies<T>(
-        provider: FactoryProvider<T>,
-    ): ProviderResolution<unknown>[] {
-        return (
-            provider.factoryDeps?.map((provideType) => {
-                const thisProviderResolved =
-                    this.resolveProviderLocation(provideType);
-                return {
-                    dependencies: this._getProviderDependencies(
-                        thisProviderResolved.providerState.definition,
-                    ),
-                    ...thisProviderResolved,
-                } satisfies ProviderResolution<unknown>;
-            }) ?? []
-        );
     }
 }

@@ -9,22 +9,68 @@ import {
     coerceProviderToProviderDefinition,
 } from "../../types/provider";
 import {
-    getModuleMeta,
-    resolveAllImportedProviders,
+    ModuleImport,
+    ModuleImportHelper,
+    coerceModuleFromImport,
+    moduleMetaFromImport,
 } from "../module/module-meta";
 import { Injector } from "./injector";
 import { ProviderLocation } from "./provider-resolution";
 import { LocalProviderState, ProviderState } from "../../types/provider-state";
 import { RootProviders } from "./root-providers";
+import { ModuleWithProviders } from "../module/module-with-providers";
 
 export class ModuleInjector<T> extends Injector {
-    private readonly moduleMeta = getModuleMeta(this.moduleType);
+    /** The module type this injector is representing */
+    private readonly moduleType = coerceModuleFromImport(this.moduleDefinition);
+    /** The module metadata */
+    protected readonly moduleMeta = moduleMetaFromImport(this.moduleDefinition);
+    /** Module import helper for computing all necessary providers from imports */
+    private readonly moduleImportHelper = new ModuleImportHelper(
+        this.moduleType as Klass,
+        this,
+    );
 
-    protected providers = new Map<ProvideType, LocalProviderState>();
+    /**
+     * Providers that are directly stated on a Module are declared here,
+     * or providers that are consumed from imported module exports.
+     */
+    protected readonly providers = new Map<ProvideType, LocalProviderState>();
+
+    /** All the provider types this injector's module type exports */
+    public readonly moduleExportProviderTypes = new Set<ProvideType>(
+        this.moduleMeta.exports,
+    ) as ReadonlySet<ProvideType>;
+
+    /**
+     * Returns a set of all modules that have been imported to this module,
+     * recursively following the imports.
+     */
+    public get deeplyImportedModules() {
+        return this.moduleImportHelper.getImportedModules() as ReadonlySet<ModuleImport>;
+    }
+
+    /**
+     * Because imported module exports can rely on providers internal
+     * to those modules (not exported from) we have to store them here
+     * for resolution too. This is a work-around, and does not properly
+     * contain providers to a module scope. This means that non-exported
+     * providers can be injected simply because they are a dependency of
+     * an exported provider. Yucky, but, hey man, this is good enough for
+     * now.
+     *
+     * TODO: Better module provider resolution! Properly hide un-exported
+     * TODO: providers from being injected, but allow them to be used as
+     * TODO: dependencies of exported providers!
+     */
+    private readonly importUnExportedProviders = new Map<
+        ProvideType,
+        LocalProviderState
+    >();
 
     constructor(
         private readonly parentInjector: Injector,
-        private readonly moduleType: Klass<T>,
+        public readonly moduleDefinition: Klass<T> | ModuleWithProviders<T>,
     ) {
         super(parentInjector);
         this._populateModuleProviders();
@@ -38,16 +84,19 @@ export class ModuleInjector<T> extends Injector {
             providerType,
         ) as ProviderState<T>;
 
-        if (!providerState) {
-            return this.parentInjector.resolveProviderLocation(providerType);
-        } else {
+        if (providerState) {
             return {
                 providerState,
                 foundIn: this,
             };
         }
+
+        return this.parentInjector.resolveProviderLocation(providerType);
     }
 
+    /**
+     * Registers all local provider definitions from the module into this injector.
+     */
     private _populateModuleProviders() {
         this.moduleMeta.providers.forEach((provider) => {
             this._addProvider(provider);
@@ -73,6 +122,9 @@ export class ModuleInjector<T> extends Injector {
         this._addProvider(moduleClassProvider);
     }
 
+    /**
+     * Helper for adding a provider to this injector
+     */
     private _addProvider(provider: Provider) {
         provider = coerceProviderToProviderDefinition(provider);
         const { providedIn, provide: provideType } = provider;
@@ -93,45 +145,53 @@ export class ModuleInjector<T> extends Injector {
         }
     }
 
-    private _processModuleImports() {
-        this.moduleMeta.imports?.forEach((importedModule) => {
-            this._importModule(importedModule);
-        });
+    /**
+     * Adds a hidden provider to this injector. Functionally this
+     * is no different than an un-hidden provider, but conceptually it's
+     * different.
+     */
+    private _addHiddenProvider(provider: Provider) {
+        provider = coerceProviderToProviderDefinition(provider);
+        const { providedIn, provide: provideType } = provider;
+        // If the provider is specified to be provided in root or anywhere,
+        // then add it to the root providers store. Otherwise, just add
+        // it to this module.
+        if (
+            providedIn === ProvidedIn.ANYWHERE ||
+            providedIn === ProvidedIn.ROOT
+        ) {
+            RootProviders.addProvider(provider);
+        } else {
+            if (!this.importUnExportedProviders.has(provideType)) {
+                this.importUnExportedProviders.set(provideType, {
+                    definition: provider,
+                });
+            }
+        }
     }
 
-    private _importModule(moduleType: Klass) {
-        const moduleMeta = getModuleMeta(moduleType);
-
-        // First deeply resolve all imported module providers
-        const importedProviders = resolveAllImportedProviders(moduleMeta);
-
-        // Only the exports of this module that we're importing get added
-        // to our provider store.
-        const exportedProviders = new Set<Provider>();
-
-        // For each provide type defined in the exports, try to resolve
-        // it against all deeply resolved imports
-        moduleMeta.exports?.forEach((exportType) => {
-            // TODO Do we silent ignore exported members that aren't imported?
-            const exportedProvider = importedProviders.get(exportType);
-            if (!exportedProvider) {
-                return;
-            }
-            exportedProviders.add(exportedProvider);
-        });
-
-        // Add the resolved exported providers.
-        exportedProviders.forEach((provider) => {
+    /**
+     * Using a module helper, add all the computed providers to this
+     * injector. Import module exports are added, and any satisfied
+     * dependencies to those exports.
+     */
+    private _processModuleImports() {
+        const exposeProviders = this.moduleImportHelper.getProvidersToExpose();
+        exposeProviders.forEach((provider) => {
             this._addProvider(provider);
         });
 
-        // Add a provider for this imported module too.
-        const importedModuleClassProvider: ClassProvider = {
-            provide: moduleType,
-            useClass: moduleType,
-        };
+        const moduleProviders = this.moduleImportHelper.getImportedModules();
+        moduleProviders.forEach((moduleImport) => {
+            const moduleType = coerceModuleFromImport(moduleImport);
+            this._addProvider(moduleType);
+        });
 
-        this._addProvider(importedModuleClassProvider);
+        const supplyProviders =
+            this.moduleImportHelper.getProvidersToSupplyButHide();
+        supplyProviders.forEach((provider) => {
+            this._addHiddenProvider(provider);
+        });
     }
 
     get<T>(providerType: ProvideType<T>): T {
@@ -139,6 +199,14 @@ export class ModuleInjector<T> extends Injector {
 
         if (providerState) {
             return this.resolve(providerState as ProviderState<T>);
+        }
+
+        const hiddenUnExportedProviderState =
+            this.importUnExportedProviders.get(providerType);
+        if (hiddenUnExportedProviderState) {
+            return this.resolve(
+                hiddenUnExportedProviderState as ProviderState<T>,
+            );
         }
 
         const providerLocation = this.resolveProviderLocation(providerType);
@@ -151,6 +219,31 @@ export class ModuleInjector<T> extends Injector {
             return this.resolve(providerLocation.providerState);
         }
 
-        return this.parentInjector.get(providerType);
+        return this.parentInjector.get<T>(providerType);
     }
+}
+
+/**
+ * @deprecated Currently unused
+ */
+export class ImportModuleInjector<T> extends ModuleInjector<T> {
+    constructor(parentInjector: Injector, moduleType: Klass<T>) {
+        super(parentInjector, moduleType);
+    }
+
+    // getAsImportModule<T>(provideType: ProvideType<T>): T | undefined {
+    //     // As an import module, if we don't have this provider exported,
+    //     // then we should not provide it.
+    //     if (!this.moduleExportProviderTypes.has(provideType)) {
+    //         return undefined;
+    //     }
+
+    //     const providerState = this.providers.get(provideType);
+
+    //     if (providerState) {
+    //         return this.resolve(providerState as ProviderState<T>);
+    //     }
+
+    //     return this._tryResolveProviderFromImports(provideType);
+    // }
 }

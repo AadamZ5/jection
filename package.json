@@ -9,13 +9,18 @@
     "lint": "eslint ./src/**/*.ts",
     "format": "prettier --write ./src/**/*.ts",
     "build": "tsc -p ./tsconfig.json",
-    "test": "jest"
+    "test": "jest",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.0.3",
+    "@commitlint/config-conventional": "^19.0.3",
+    "@commitlint/prompt-cli": "^19.0.3",
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.19",
     "@typescript-eslint/eslint-plugin": "^7.0.2",
     "@typescript-eslint/parser": "^7.0.2",
+    "commitizen": "^4.3.0",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "husky": "^9.0.11",

@@ -28,7 +28,6 @@ jest.mock("./root-providers", () => {
     return rootProvidersMock;
 });
 
-import { describe } from "node:test";
 import { RootInjector } from "./root-injector";
 import { Provider } from "../../types/provider";
 import { RootProviders } from "./root-providers";

@@ -1,4 +1,4 @@
-import { ProvidedIn } from "..";
+import { ProvidedIn } from "../units/injectable/injectable-options";
 import { providerTypeToString } from "./provide-type";
 import {
     Provider,

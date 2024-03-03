@@ -12,6 +12,9 @@ import { coerceModuleFromImport, getModuleMeta } from "../module/module-meta";
 import { Injector } from "./injector";
 import { RootProviders } from "./root-providers";
 
+/**
+ * @deprecated Not currently used
+ */
 export class ImportModuleProviderRegistry {
     private readonly moduleMeta = getModuleMeta(this.importModuleType);
     private readonly importRegistries = this._getImportRegistries();

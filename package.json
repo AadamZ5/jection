@@ -1,6 +1,6 @@
 {
   "name": "jection",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An opinionated and thin DI framework",
   "repository": {"url": "https://github.com/AadamZ5/jection"},
   "main": "dist",
@@ -12,6 +12,7 @@
     "build": "tsc -p ./tsconfig.json",
     "test": "jest --config ./jest.config.ts",
     "e2e": "jest --config ./e2e-jest.config.ts",
+    "prepack": "yarn build && yarn test && yarn e2e",
     "prepare": "husky"
   },
   "devDependencies": {

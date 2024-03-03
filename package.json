@@ -1,7 +1,8 @@
 {
-  "name": "jector",
+  "name": "jection",
   "version": "0.1.0",
   "description": "An opinionated and thin DI framework",
+  "repository": {"url": "https://github.com/AadamZ5/jection"},
   "main": "dist",
   "author": "Aadam Zocolo",
   "license": "MIT",

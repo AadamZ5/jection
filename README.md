@@ -1,4 +1,4 @@
-# `jector`
+# `jection`
 
 A light-wight dependency-injection framework with support for lazy loading.
 

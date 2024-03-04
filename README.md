@@ -1,6 +1,6 @@
 # `jection`
 
-A light-wight dependency-injection framework with support for lazy loading.
+A light-weight dependency-injection framework with support for lazy loading.
 
 ## Inspiration
 
@@ -18,7 +18,7 @@ This library relies on the `reflect-metadata` package to be instantiated at your
  - [x] Root providers
  - [x] Singleton injectable classes with `@Injectable(...)`
  - [x] Singleton scoped provision with `@Injectable()` and declaring in a `@Module({ providers: [SomeInjectableClass] })` 
- - [x] Tokens and `Inject` helpers for representing non-reflactable items
+ - [x] Tokens and `Inject` helpers for representing non-reflectable items
  - [x] Modules for scoping dependencies
  - [x] Modules importing modules
  - [x] Lazy loading modules with elegant 🤷‍♀️ API
